@@ -13,4 +13,4 @@ formatted_weight=$(jq '.weight' data.json | awk '{printf "%d", $1 / 10}')
 type=$(jq -r '.types[]?.type.name' data.json | paste -sd ', ' - | sed 's/.*/\u&/')
 
 # Format and display the message
-echo "$name is of type $type, weighs ${weight}kg, and is ${height}m tall."
+echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
