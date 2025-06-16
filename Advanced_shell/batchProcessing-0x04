@@ -1,35 +1,42 @@
 #!/bin/bash
 
-# List of Pokémon
 POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
-
-# Base API URL
 API_BASE="https://pokeapi.co/api/v2/pokemon"
 
-# Output directory
 mkdir -p pokemon_data
-> errors.txt  # Clear previous error log
+> errors.txt
 
-# Fetch function (runs in background)
-fetch_pokemon() {
+# Function to fetch a Pokémon with timeout protection
+fetch_with_timeout() {
     local name="$1"
     echo "Fetching data for $name..."
 
-    curl -s --fail "${API_BASE}/${name}" -o "pokemon_data/${name}.json"
+    # Start curl in the background
+    curl -s --fail "${API_BASE}/${name}" -o "pokemon_data/${name}.json" &
+    pid=$!
 
-    if [ $? -eq 0 ]; then
+    # Allow 10 seconds for the process
+    (sleep 10 && kill "$pid" 2>/dev/null && echo "Timeout fetching $name" >> errors.txt) &
+    watchdog=$!
+
+    # Wait for curl to finish
+    wait "$pid"
+    status=$?
+
+    # Kill watchdog if curl finished first
+    kill "$watchdog" 2>/dev/null
+
+    if [ $status -eq 0 ]; then
         echo "Saved data to pokemon_data/${name}.json"
     else
-        echo "Error fetching $name" >> errors.txt
+        echo "Failed to fetch $name" >> errors.txt
     fi
 }
 
-# Launch all fetches in parallel
+# Run all in parallel
 for name in "${POKEMONS[@]}"; do
-    fetch_pokemon "$name" &
+    fetch_with_timeout "$name" &
 done
 
-# Wait for all background jobs to finish
 wait
-
 echo -e "\nAll Pokémon fetch tasks completed."
